@@ -1,7 +1,7 @@
 package com.j256.ormlite.android.compat;
 
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
+import net.sqlcipher.database.SQLiteDatabase;
 import android.os.CancellationSignal;
 
 /**
@@ -17,11 +17,8 @@ public class JellyBeanApiCompatibility extends BasicApiCompatibility {
 
 	@Override
 	public Cursor rawQuery(SQLiteDatabase db, String sql, String[] selectionArgs, CancellationHook cancellationHook) {
-		if (cancellationHook == null) {
-			return db.rawQuery(sql, selectionArgs);
-		} else {
-			return db.rawQuery(sql, selectionArgs, ((JellyBeanCancellationHook) cancellationHook).cancellationSignal);
-		}
+		// no CancellationHook cancellationHook in SQLChifer
+		return db.rawQuery(sql, selectionArgs);
 	}
 
 	@Override

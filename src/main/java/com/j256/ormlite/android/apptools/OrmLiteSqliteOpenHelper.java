@@ -9,9 +9,9 @@ import java.io.InputStreamReader;
 import java.sql.SQLException;
 
 import android.content.Context;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteDatabase.CursorFactory;
-import android.database.sqlite.SQLiteOpenHelper;
+import net.sqlcipher.database.SQLiteDatabase;
+import net.sqlcipher.database.SQLiteDatabase.CursorFactory;
+import net.sqlcipher.database.SQLiteOpenHelper;
 
 import com.j256.ormlite.android.AndroidConnectionSource;
 import com.j256.ormlite.android.AndroidDatabaseConnection;
@@ -34,7 +34,8 @@ import com.j256.ormlite.table.DatabaseTableConfigLoader;
 public abstract class OrmLiteSqliteOpenHelper extends SQLiteOpenHelper {
 
 	protected static Logger logger = LoggerFactory.getLogger(OrmLiteSqliteOpenHelper.class);
-	protected AndroidConnectionSource connectionSource = new AndroidConnectionSource(this);
+	private final String databasePassword;
+	protected AndroidConnectionSource connectionSource;
 
 	protected boolean cancelQueriesEnabled;
 	private volatile boolean isOpen = true;
@@ -45,76 +46,78 @@ public abstract class OrmLiteSqliteOpenHelper extends SQLiteOpenHelper {
 	 * @param databaseName
 	 *            Name of the database we are opening.
 	 * @param factory
-	 *            Cursor factory or null if none.
+ *            Cursor factory or null if none.
 	 * @param databaseVersion
-	 *            Version of the database we are opening. This causes {@link #onUpgrade(SQLiteDatabase, int, int)} to be
-	 *            called if the stored database is a different version.
+*            Version of the database we are opening. This causes {@link #onUpgrade(SQLiteDatabase, int, int)} to be
+	 * @param databasePassword
 	 */
-	public OrmLiteSqliteOpenHelper(Context context, String databaseName, CursorFactory factory, int databaseVersion) {
+	public OrmLiteSqliteOpenHelper(Context context, String databaseName, CursorFactory factory, int databaseVersion, String databasePassword) {
 		super(context, databaseName, factory, databaseVersion);
+		this.databasePassword = databasePassword;
+		initializeCipher(context);
 		logger.trace("{}: constructed connectionSource {}", this, connectionSource);
 	}
 
 	/**
 	 * Same as the other constructor with the addition of a file-id of the table config-file. See
 	 * {@link OrmLiteConfigUtil} for details.
-	 * 
-	 * @param context
+	 *  @param context
 	 *            Associated content from the application. This is needed to locate the database.
 	 * @param databaseName
 	 *            Name of the database we are opening.
 	 * @param factory
-	 *            Cursor factory or null if none.
+ *            Cursor factory or null if none.
 	 * @param databaseVersion
-	 *            Version of the database we are opening. This causes {@link #onUpgrade(SQLiteDatabase, int, int)} to be
-	 *            called if the stored database is a different version.
+*            Version of the database we are opening. This causes {@link #onUpgrade(SQLiteDatabase, int, int)} to be
+*            called if the stored database is a different version.
 	 * @param configFileId
-	 *            file-id which probably should be a R.raw.ormlite_config.txt or some static value.
+	 * @param databasePassword
 	 */
 	public OrmLiteSqliteOpenHelper(Context context, String databaseName, CursorFactory factory, int databaseVersion,
-			int configFileId) {
-		this(context, databaseName, factory, databaseVersion, openFileId(context, configFileId));
+								   int configFileId, String databasePassword) {
+		this(context, databaseName, factory, databaseVersion, openFileId(context, configFileId), databasePassword);
 	}
 
 	/**
 	 * Same as the other constructor with the addition of a config-file. See {@link OrmLiteConfigUtil} for details.
-	 * 
-	 * @param context
+	 *  @param context
 	 *            Associated content from the application. This is needed to locate the database.
 	 * @param databaseName
 	 *            Name of the database we are opening.
 	 * @param factory
-	 *            Cursor factory or null if none.
+ *            Cursor factory or null if none.
 	 * @param databaseVersion
-	 *            Version of the database we are opening. This causes {@link #onUpgrade(SQLiteDatabase, int, int)} to be
-	 *            called if the stored database is a different version.
+*            Version of the database we are opening. This causes {@link #onUpgrade(SQLiteDatabase, int, int)} to be
+*            called if the stored database is a different version.
 	 * @param configFile
-	 *            Configuration file to be loaded.
+	 * @param databasePassword
 	 */
 	public OrmLiteSqliteOpenHelper(Context context, String databaseName, CursorFactory factory, int databaseVersion,
-			File configFile) {
-		this(context, databaseName, factory, databaseVersion, openFile(configFile));
+								   File configFile, String databasePassword) {
+		this(context, databaseName, factory, databaseVersion, openFile(configFile), databasePassword);
 	}
 
 	/**
 	 * Same as the other constructor with the addition of a input stream to the table config-file. See
 	 * {@link OrmLiteConfigUtil} for details.
-	 * 
-	 * @param context
+	 *  @param context
 	 *            Associated content from the application. This is needed to locate the database.
 	 * @param databaseName
 	 *            Name of the database we are opening.
 	 * @param factory
-	 *            Cursor factory or null if none.
+ *            Cursor factory or null if none.
 	 * @param databaseVersion
-	 *            Version of the database we are opening. This causes {@link #onUpgrade(SQLiteDatabase, int, int)} to be
-	 *            called if the stored database is a different version.
+*            Version of the database we are opening. This causes {@link #onUpgrade(SQLiteDatabase, int, int)} to be
+*            called if the stored database is a different version.
 	 * @param stream
-	 *            Stream opened to the configuration file to be loaded. It will be closed when this method returns.
+	 * @param databasePassword
 	 */
 	public OrmLiteSqliteOpenHelper(Context context, String databaseName, CursorFactory factory, int databaseVersion,
-			InputStream stream) {
+								   InputStream stream, String databasePassword) {
 		super(context, databaseName, factory, databaseVersion);
+		this.databasePassword = databasePassword;
+		initializeCipher(context);
+
 		if (stream == null) {
 			return;
 		}
@@ -131,6 +134,11 @@ public abstract class OrmLiteSqliteOpenHelper extends SQLiteOpenHelper {
 			IOUtils.closeQuietly(reader);
 			IOUtils.closeQuietly(stream);
 		}
+	}
+
+	private void initializeCipher(Context context) {
+		SQLiteDatabase.loadLibs(context);
+		connectionSource = new AndroidConnectionSource(this, databasePassword);
 	}
 
 	/**
