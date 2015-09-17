@@ -28,7 +28,7 @@ import com.j256.ormlite.logger.LoggerFactory;
  * connection instance between multiple clients, which will allow multiple activities and services to run at the same
  * time.
  * 
- * Every time you use the helper, you should call {@link #getHelper(Context)} or {@link #getHelper(Context, Class)}.
+ * Every time you use the helper, you should call {@link #getHelper(Context)} or {@link #getHelper(Context, Class, String)}.
  * When you are done with the helper you should call {@link #releaseHelper()}.
  * 
  * @author graywatson, kevingalligan
@@ -70,17 +70,18 @@ public class OpenHelperManager {
 	 * onCreate() type of method when the application or service is starting. The caller should then keep the helper
 	 * around until it is shutting down when {@link #releaseHelper()} should be called.
 	 */
-	public static synchronized <T extends OrmLiteSqliteOpenHelper> T getHelper(Context context, Class<T> openHelperClass) {
+	public static synchronized <T extends OrmLiteSqliteOpenHelper> T getHelper(Context context, Class<T> openHelperClass, 
+																			   String password) {
 		if (openHelperClass == null) {
 			throw new IllegalArgumentException("openHelperClass argument is null");
 		}
 		innerSetHelperClass(openHelperClass);
-		return loadHelper(context, openHelperClass);
+		return loadHelper(context, openHelperClass, password);
 	}
 
 	/**
 	 * <p>
-	 * Similar to {@link #getHelper(Context, Class)} (which is recommended) except we have to find the helper class
+	 * Similar to {@link #getHelper(Context, Class, String)} (which is recommended) except we have to find the helper class
 	 * through other means. This method requires that the Context be a class that extends one of ORMLite's Android base
 	 * classes such as {@link OrmLiteBaseActivity}. Either that or the helper class needs to be set in the strings.xml.
 	 * </p>
@@ -98,7 +99,7 @@ public class OpenHelperManager {
 	 * <li>An exception is thrown saying that it was not able to set the helper class.</li>
 	 * </ol>
 	 * 
-	 * @deprecated Should use {@link #getHelper(Context, Class)}
+	 * @deprecated Should use {@link #getHelper(Context, Class, String)}
 	 */
 	@Deprecated
 	public static synchronized OrmLiteSqliteOpenHelper getHelper(Context context) {
@@ -109,7 +110,7 @@ public class OpenHelperManager {
 			Context appContext = context.getApplicationContext();
 			innerSetHelperClass(lookupHelperClass(appContext, context.getClass()));
 		}
-		return loadHelper(context, helperClass);
+		return loadHelper(context, helperClass, ""); // do not use Deprecated method
 	}
 
 	/**
@@ -122,7 +123,7 @@ public class OpenHelperManager {
 
 	/**
 	 * Release the helper that was previously returned by a call {@link #getHelper(Context)} or
-	 * {@link #getHelper(Context, Class)}. This will decrement the usage counter and close the helper if the counter is
+	 * {@link #getHelper(Context, Class, String)}. This will decrement the usage counter and close the helper if the counter is
 	 * 0.
 	 * 
 	 * <p>
@@ -162,7 +163,8 @@ public class OpenHelperManager {
 		}
 	}
 
-	private static <T extends OrmLiteSqliteOpenHelper> T loadHelper(Context context, Class<T> openHelperClass) {
+	private static <T extends OrmLiteSqliteOpenHelper> T loadHelper(Context context, Class<T> openHelperClass, 
+																	String password) {
 		if (helper == null) {
 			if (wasClosed) {
 				// this can happen if you are calling get/release and then get again
@@ -172,7 +174,7 @@ public class OpenHelperManager {
 				throw new IllegalArgumentException("context argument is null");
 			}
 			Context appContext = context.getApplicationContext();
-			helper = constructHelper(appContext, openHelperClass);
+			helper = constructHelper(appContext, openHelperClass, password);
 			logger.trace("zero instances, created helper {}", helper);
 			/*
 			 * Filipe Leandro and I worked on this bug for like 10 hours straight. It's a doosey.
@@ -212,17 +214,17 @@ public class OpenHelperManager {
 	 * Call the constructor on our helper class.
 	 */
 	private static OrmLiteSqliteOpenHelper constructHelper(Context context,
-			Class<? extends OrmLiteSqliteOpenHelper> openHelperClass) {
+			Class<? extends OrmLiteSqliteOpenHelper> openHelperClass, String password) {
 		Constructor<?> constructor;
 		try {
-			constructor = openHelperClass.getConstructor(Context.class);
+			constructor = openHelperClass.getConstructor(Context.class, String.class);
 		} catch (Exception e) {
 			throw new IllegalStateException(
-					"Could not find public constructor that has a single (Context) argument for helper class "
+					"Could not find public constructor that has a Context, String arguments for helper class "
 							+ openHelperClass, e);
 		}
 		try {
-			return (OrmLiteSqliteOpenHelper) constructor.newInstance(context);
+			return (OrmLiteSqliteOpenHelper) constructor.newInstance(context, password);
 		} catch (Exception e) {
 			throw new IllegalStateException("Could not construct instance of helper class " + openHelperClass, e);
 		}

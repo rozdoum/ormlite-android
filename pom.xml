@@ -4,7 +4,7 @@
 	<!-- ormlite configuration file for Maven (http://maven.apache.org/) -->
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.j256.ormlite</groupId>
-	<artifactId>ormlite-android</artifactId>
+	<artifactId>ormlite-android-sqlcipher</artifactId>
 	<version>4.49-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>ORMLite Android</name>
@@ -116,7 +116,7 @@
 		</profile>
 	</profiles>
 	<build>
-		<finalName>ormlite-android</finalName>
+		<finalName>ormlite-android-sqlcipher</finalName>
 		<resources>
 			<resource>
 				<directory>src/main/resources</directory>
